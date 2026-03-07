@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Cormorant Garamond", serif;
+  --font-body: "DM Sans", sans-serif;
+  --color-bg: #F5F0E8;
+  --color-surface: #EDE8DE;
+  --color-border: #D6CEBC;
+  --color-text-primary: #1C1A16;
+  --color-text-secondary: #7A7060;
+  --color-accent: #B5722A;
+  --color-prayer-dot: #2C4A3E;
+  --color-task-line: #C8BFA8;
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+:root {
+  --bg: #F5F0E8;
+  --surface: #EDE8DE;
+  --border: #D6CEBC;
+  --text-primary: #1C1A16;
+  --text-secondary: #7A7060;
+  --accent: #B5722A;
+  --prayer-dot: #2C4A3E;
+  --task-line: #C8BFA8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-body), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+.app-container {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+@media (min-width: 768px) {
+  .app-container {
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.08);
+  }
+}
+
+.font-display {
+  font-family: var(--font-display), serif;
+}
+
+.font-body {
+  font-family: var(--font-body), sans-serif;
+}
+
+@keyframes prayer-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.15); }
+}
+
+.prayer-pulse {
+  animation: prayer-pulse 3s ease-in-out infinite;
+}
