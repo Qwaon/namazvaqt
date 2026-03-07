@@ -42,6 +42,12 @@ body {
   color: var(--text-primary);
 }
 
+.prayer-block {
+  min-height: 100px;
+  height: auto;
+  padding: 12px 0;
+}
+
 .app-container {
   max-width: 480px;
   margin: 0 auto;

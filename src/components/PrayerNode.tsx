@@ -1,4 +1,3 @@
-import { format } from 'date-fns'
 import { motion } from 'framer-motion'
 
 type PrayerStatus = 'completed' | 'active' | 'upcoming' | 'missed'
@@ -18,6 +17,14 @@ export function PrayerNode({ name, time, status, onToggleCompleted, index, style
   const isCompleted = status === 'completed'
   const isUpcoming = status === 'upcoming'
 
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const displayTime = time.toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone,
+  })
+
   const dotClasses = isCompleted
     ? 'border-[var(--prayer-dot)] bg-[var(--prayer-dot)]'
     : isActive
@@ -31,7 +38,7 @@ export function PrayerNode({ name, time, status, onToggleCompleted, index, style
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.15 }}
-      className={`flex items-center gap-4 py-4 relative -ml-12 w-[calc(100%+3rem)] ${className ?? ''}`}
+      className={`flex items-center gap-4 py-4 relative w-full ${className ?? ''}`}
       style={style}
     >
       <div className="w-12 flex-shrink-0 flex items-center justify-center">
@@ -55,7 +62,7 @@ export function PrayerNode({ name, time, status, onToggleCompleted, index, style
       <span
         className="ml-auto font-display text-[18px] text-[var(--text-secondary)] tabular-nums leading-none"
       >
-        {format(time, 'HH:mm')}
+        {displayTime}
       </span>
     </motion.div>
   )

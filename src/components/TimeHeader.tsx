@@ -41,6 +41,14 @@ export function TimeHeader({ onSettingsClick }: TimeHeaderProps) {
   const location = useAppStore((s) => s.location)
   const [now, setNow] = useState(() => new Date())
 
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const displayNow = now.toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone,
+  })
+
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60_000)
     return () => clearInterval(t)
@@ -118,7 +126,7 @@ export function TimeHeader({ onSettingsClick }: TimeHeaderProps) {
         className="font-display text-5xl font-semibold text-[var(--text-primary)] mt-2 tracking-tight"
         style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}
       >
-        {format(now, 'HH:mm')}
+        {displayNow}
       </p>
       {displayNext && (
         <p className="font-body text-sm text-[var(--accent)] mt-2 flex items-center gap-2">
