@@ -43,9 +43,19 @@ body {
 }
 
 .prayer-block {
-  min-height: 100px;
-  height: auto;
-  padding: 12px 0;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 16px 0;
+}
+
+.timeline-container {
+  overflow: visible;
+  padding-left: 24px;
+}
+
+.prayer-dot {
+  flex-shrink: 0;
+  margin-left: -8px;
 }
 
 .app-container {

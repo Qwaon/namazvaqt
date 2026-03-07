@@ -31,58 +31,42 @@ export function Settings() {
   } = useAppStore()
   const { loading, error, getCurrentPosition } = useLocation()
 
-  const [cityQuery, setCityQuery] = useState(location.city)
-  const [cityResults, setCityResults] = useState<Array<{ name: string; lat: number; lng: number }>>([])
+  const [query, setQuery] = useState(location.city)
+  const [results, setResults] = useState<any[]>([])
   const [cityLoading, setCityLoading] = useState(false)
 
   useEffect(() => {
-    setCityQuery(location.city)
+    setQuery(location.city)
   }, [location.city])
 
-  const canSearch = useMemo(() => cityQuery.trim().length >= 2, [cityQuery])
+  const canSearch = useMemo(() => query.trim().length >= 2, [query])
 
-  useEffect(() => {
-    if (!canSearch) {
-      setCityResults([])
-      return
+  const handleSearch = async () => {
+    if (!canSearch) return
+    try {
+      setCityLoading(true)
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&accept-language=ru`,
+      )
+      const data = await res.json()
+      setResults(Array.isArray(data) ? data : [])
+    } catch {
+      setResults([])
+    } finally {
+      setCityLoading(false)
     }
+  }
 
-    const controller = new AbortController()
-    const t = setTimeout(async () => {
-      try {
-        setCityLoading(true)
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityQuery)}&format=json&limit=5`,
-          {
-            signal: controller.signal,
-            headers: {
-              'Accept-Language': 'ru',
-            },
-          }
-        )
-        const data = await res.json()
-        const mapped = (Array.isArray(data) ? data : []).map((place: any) => ({
-          name: String(place.display_name ?? ''),
-          lat: Number.parseFloat(place.lat),
-          lng: Number.parseFloat(place.lon),
-        }))
-        setCityResults(mapped.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && p.name))
-      } catch {
-        setCityResults([])
-      } finally {
-        setCityLoading(false)
-      }
-    }, 350)
+  const selectCity = (place: any) => {
+    const lat = Number.parseFloat(place?.lat)
+    const lng = Number.parseFloat(place?.lon)
+    const display = String(place?.display_name ?? '')
+    const city = display.split(',')[0]?.trim() || display
 
-    return () => {
-      controller.abort()
-      clearTimeout(t)
-    }
-  }, [canSearch, cityQuery])
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !city) return
 
-  const onSelectCity = (r: { name: string; lat: number; lng: number }) => {
-    setLocation({ city: r.name, lat: r.lat, lng: r.lng })
-    setCityResults([])
+    setLocation({ lat, lng, city })
+    setResults([])
   }
 
   return (
@@ -99,11 +83,24 @@ export function Settings() {
           <div className="flex gap-3 items-center">
             <input
               type="text"
-              value={cityQuery}
-              onChange={(e) => setCityQuery(e.target.value)}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch()
+                }
+              }}
               placeholder="Город"
               className="flex-1 font-body text-[var(--text-primary)] px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--surface)] outline-none"
             />
+            <button
+              type="button"
+              onClick={handleSearch}
+              disabled={cityLoading || !canSearch}
+              className="font-body text-sm px-4 py-2 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] disabled:opacity-50"
+            >
+              Найти
+            </button>
             <button
               type="button"
               onClick={getCurrentPosition}
@@ -118,27 +115,27 @@ export function Settings() {
             <div className="mt-2 font-body text-xs text-[var(--text-secondary)]">Поиск…</div>
           )}
 
-          {cityResults.length > 0 && (
+          {results.length > 0 && (
             <div className="absolute left-0 right-0 mt-2 rounded-md border border-[var(--border)] bg-[var(--surface)] overflow-hidden z-20">
-              {cityResults.map((r) => (
-                <button
-                  key={`${r.lat}-${r.lng}-${r.name}`}
-                  type="button"
-                  onClick={() => onSelectCity(r)}
-                  className="w-full text-left px-3 py-2 font-body text-sm text-[var(--text-primary)] hover:bg-[var(--bg)]"
-                >
-                  {r.name}
-                </button>
-              ))}
+              {results.map((place) => {
+                const display = String(place?.display_name ?? '')
+                return (
+                  <button
+                    key={`${place?.place_id ?? display}-${place?.lat ?? ''}-${place?.lon ?? ''}`}
+                    type="button"
+                    onClick={() => selectCity(place)}
+                    className="w-full text-left px-3 py-2 font-body text-sm text-[var(--text-primary)] hover:bg-[var(--bg)]"
+                  >
+                    {display}
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
         {error && (
           <p className="font-body text-sm text-[var(--accent)]">{error}</p>
         )}
-        <p className="font-body text-xs text-[var(--text-secondary)]">
-          Координаты: {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
-        </p>
       </section>
 
       <section className="space-y-4 mb-10">

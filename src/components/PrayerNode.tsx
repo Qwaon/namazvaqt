@@ -49,7 +49,7 @@ export function PrayerNode({ name, time, status, onToggleCompleted, index, style
           aria-label={isCompleted ? 'Отменить отметку намаза' : 'Отметить намаз как совершённый'}
         >
           <div
-            className={`w-3.5 h-3.5 rounded-full flex-shrink-0 border-2 ${dotClasses}`}
+            className={`prayer-dot w-3.5 h-3.5 rounded-full border-2 ${dotClasses}`}
             style={{
               boxShadow: isActive ? '0 0 0 4px rgba(44, 74, 62, 0.15)' : undefined,
             }}

@@ -86,7 +86,7 @@ export function Timeline() {
 
   return (
     <div className="max-w-[480px] mx-auto px-6 pb-32 relative">
-      <div className="pl-12">
+      <div className="timeline-container">
         {PRAYER_LIST.map((prayer, i) => {
           const time = prayerTimes[prayer.key]
           const isActive = activeBlockIndex === i
