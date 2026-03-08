@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAppStore, type CalculationMethodKey } from '../store/useAppStore'
 import { useLocation } from '../hooks/useLocation'
+import { requestNotificationPermission } from '../hooks/useNotifications'
+import { PrayerStats } from '../components/PrayerStats'
 
 const CALC_METHODS: { value: CalculationMethodKey; label: string }[] = [
   { value: 'MuslimWorldLeague', label: 'Всемирная исламская лига' },
@@ -24,20 +26,31 @@ export function Settings() {
     calculationMethod,
     asrJuristic,
     reminderMinutes,
+    theme,
     setCalculationMethod,
     setAsrJuristic,
     setReminderMinutes,
     setLocation,
+    toggleTheme,
   } = useAppStore()
   const { loading, error, getCurrentPosition } = useLocation()
 
   const [query, setQuery] = useState(location.city)
   const [results, setResults] = useState<any[]>([])
   const [cityLoading, setCityLoading] = useState(false)
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>('default')
 
   useEffect(() => {
     setQuery(location.city)
   }, [location.city])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setNotifPermission(Notification.permission)
+    } else {
+      setNotifPermission('unsupported')
+    }
+  }, [])
 
   const canSearch = useMemo(() => query.trim().length >= 2, [query])
 
@@ -69,12 +82,18 @@ export function Settings() {
     setResults([])
   }
 
+  const handleEnableNotifications = async () => {
+    const granted = await requestNotificationPermission()
+    setNotifPermission(granted ? 'granted' : 'denied')
+  }
+
   return (
     <div className="max-w-[480px] mx-auto px-6 py-8">
       <h1 className="font-display text-2xl font-semibold text-[var(--text-primary)] mb-8">
         Настройки
       </h1>
 
+      {/* Location */}
       <section className="space-y-4 mb-10">
         <h2 className="font-body text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wide">
           Местоположение
@@ -85,11 +104,7 @@ export function Settings() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleSearch()
-                }
-              }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSearch() }}
               placeholder="Город"
               className="flex-1 font-body text-[var(--text-primary)] px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--surface)] outline-none"
             />
@@ -133,11 +148,59 @@ export function Settings() {
             </div>
           )}
         </div>
-        {error && (
-          <p className="font-body text-sm text-[var(--accent)]">{error}</p>
-        )}
+        {error && <p className="font-body text-sm text-[var(--accent)]">{error}</p>}
       </section>
 
+      {/* Appearance */}
+      <section className="space-y-4 mb-10">
+        <h2 className="font-body text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wide">
+          Внешний вид
+        </h2>
+        <div className="flex items-center justify-between">
+          <span className="font-body text-sm text-[var(--text-primary)]">Тёмная тема</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={theme === 'dark'}
+            onClick={toggleTheme}
+            className="relative w-12 h-6 rounded-full transition-colors"
+            style={{ background: theme === 'dark' ? 'var(--prayer-dot)' : 'var(--border)' }}
+          >
+            <div
+              className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform"
+              style={{ transform: theme === 'dark' ? 'translateX(26px)' : 'translateX(2px)' }}
+            />
+          </button>
+        </div>
+      </section>
+
+      {/* Notifications */}
+      {notifPermission !== 'unsupported' && (
+        <section className="space-y-4 mb-10">
+          <h2 className="font-body text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wide">
+            Уведомления
+          </h2>
+          {notifPermission === 'granted' ? (
+            <p className="font-body text-sm text-[var(--prayer-dot)]">
+              ✓ Уведомления включены
+            </p>
+          ) : notifPermission === 'denied' ? (
+            <p className="font-body text-sm text-[var(--text-secondary)]">
+              Уведомления заблокированы в настройках браузера
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={handleEnableNotifications}
+              className="font-body text-sm px-4 py-2 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)]"
+            >
+              Включить уведомления о намазах
+            </button>
+          )}
+        </section>
+      )}
+
+      {/* Calculation method */}
       <section className="space-y-4 mb-10">
         <h2 className="font-body text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wide">
           Метод расчёта
@@ -148,44 +211,36 @@ export function Settings() {
           className="w-full font-body text-[var(--text-primary)] px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--surface)] outline-none"
         >
           {CALC_METHODS.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
+            <option key={m.value} value={m.value}>{m.label}</option>
           ))}
         </select>
       </section>
 
+      {/* Asr juristic */}
       <section className="space-y-4 mb-10">
         <h2 className="font-body text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wide">
           Мазхаб для Асра
         </h2>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setAsrJuristic('Standard')}
-            className={`flex-1 py-2 font-body text-sm rounded-md border ${
-              asrJuristic === 'Standard'
-                ? 'bg-[var(--text-primary)] text-white border-[var(--text-primary)]'
-                : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)]'
-            }`}
-          >
-            Обычный
-          </button>
-          <button
-            type="button"
-            onClick={() => setAsrJuristic('Hanafi')}
-            className={`flex-1 py-2 font-body text-sm rounded-md border ${
-              asrJuristic === 'Hanafi'
-                ? 'bg-[var(--text-primary)] text-white border-[var(--text-primary)]'
-                : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)]'
-            }`}
-          >
-            Ханафи
-          </button>
+          {(['Standard', 'Hanafi'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setAsrJuristic(v)}
+              className={`flex-1 py-2 font-body text-sm rounded-md border ${
+                asrJuristic === v
+                  ? 'bg-[var(--text-primary)] text-white border-[var(--text-primary)]'
+                  : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)]'
+              }`}
+            >
+              {v === 'Standard' ? 'Обычный' : 'Ханафи'}
+            </button>
+          ))}
         </div>
       </section>
 
-      <section className="space-y-4">
+      {/* Reminder */}
+      <section className="space-y-4 mb-10">
         <h2 className="font-body text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wide">
           Напоминание перед намазом
         </h2>
@@ -205,6 +260,14 @@ export function Settings() {
             </button>
           ))}
         </div>
+      </section>
+
+      {/* Prayer statistics */}
+      <section className="space-y-4">
+        <h2 className="font-body text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wide">
+          Статистика намазов
+        </h2>
+        <PrayerStats />
       </section>
     </div>
   )

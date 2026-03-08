@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 
 export function useLocation() {
-  const { location, setLocation } = useAppStore()
+  const { setLocation } = useAppStore()
+  const location = useAppStore((s) => s.location)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -50,12 +51,6 @@ export function useLocation() {
       { enableHighAccuracy: true }
     )
   }, [fetchCityFromCoords])
-
-  useEffect(() => {
-    if (location.lat === 0 && location.lng === 0) {
-      getCurrentPosition()
-    }
-  }, [])
 
   return { location, loading, error, getCurrentPosition, fetchCityFromCoords }
 }

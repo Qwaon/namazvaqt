@@ -25,6 +25,17 @@
   --task-line: #C8BFA8;
 }
 
+.dark {
+  --bg: #1A1814;
+  --surface: #22201A;
+  --border: #332E22;
+  --text-primary: #EDE8DE;
+  --text-secondary: #6A6355;
+  --accent: #D4884A;
+  --prayer-dot: #4A8A6E;
+  --task-line: #3A3528;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -43,9 +54,7 @@ body {
 }
 
 .prayer-block {
-  height: auto !important;
-  min-height: 0 !important;
-  padding: 16px 0;
+  padding: 0;
 }
 
 .timeline-container {
