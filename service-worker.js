@@ -1,4 +1,4 @@
-const CACHE_NAME = 'namazvaqt-v1'
+const CACHE_NAME = 'namazvaqt-v2'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -16,6 +16,18 @@ self.addEventListener('activate', (event) => {
     )
   )
   self.clients.claim()
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus()
+      }
+      return self.clients.openWindow('/')
+    })
+  )
 })
 
 self.addEventListener('fetch', (event) => {
