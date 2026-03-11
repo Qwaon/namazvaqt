@@ -14,7 +14,7 @@ export type TaskRecurring = 'none' | 'daily'
 export interface Task {
   id: string
   name: string
-  duration: number
+  time?: string
   block: TimeBlock
   priority: TaskPriority
   completed: boolean
@@ -53,6 +53,32 @@ export interface PrayerTimesResult {
 
 export type PrayerKey = 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha'
 
+function computeBlock(timeStr: string | undefined, prayerTimes: PrayerTimesResult | null): TimeBlock {
+  let taskDate: Date
+  if (timeStr) {
+    const [h, m] = timeStr.split(':').map(Number)
+    taskDate = new Date()
+    taskDate.setHours(h!, m!, 0, 0)
+  } else {
+    taskDate = new Date()
+  }
+
+  if (!prayerTimes) {
+    const h = taskDate.getHours()
+    if (h < 12) return 'fajr-dhuhr'
+    if (h < 15) return 'dhuhr-asr'
+    if (h < 18) return 'asr-maghrib'
+    if (h < 20) return 'maghrib-isha'
+    return 'after-isha'
+  }
+
+  if (taskDate < prayerTimes.dhuhr) return 'fajr-dhuhr'
+  if (taskDate < prayerTimes.asr) return 'dhuhr-asr'
+  if (taskDate < prayerTimes.maghrib) return 'asr-maghrib'
+  if (taskDate < prayerTimes.isha) return 'maghrib-isha'
+  return 'after-isha'
+}
+
 interface AppState {
   location: LocationState
   calculationMethod: CalculationMethodKey
@@ -72,10 +98,8 @@ interface AppState {
   setPrayerTimes: (times: PrayerTimesResult | null) => void
   togglePrayerCompleted: (key: PrayerKey) => void
   checkAndResetCompletedPrayers: () => void
-  addTask: (task: Omit<Task, 'id' | 'completed'>) => void
+  addTask: (task: Pick<Task, 'name' | 'time' | 'priority' | 'recurring'>) => void
   updateTask: (id: string, patch: Partial<Omit<Task, 'id'>>) => void
-  reorderTasksInBlock: (activeId: string, overId: string) => void
-  moveTaskToBlock: (activeId: string, targetBlock: TimeBlock, overId?: string) => void
   toggleTask: (id: string) => void
   removeTask: (id: string) => void
 }
@@ -92,7 +116,7 @@ export function todayStr(): string {
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       location: defaultLocation,
       calculationMethod: 'MuslimWorldLeague',
       asrJuristic: 'Standard',
@@ -135,7 +159,6 @@ export const useAppStore = create<AppState>()(
             [state.completedPrayersDate]: state.completedPrayers,
           }
 
-          // Reset completed flag on daily recurring tasks
           const tasks = state.tasks.map((t) =>
             t.recurring === 'daily' ? { ...t, completed: false } : t
           )
@@ -149,86 +172,25 @@ export const useAppStore = create<AppState>()(
         }),
 
       addTask: (task) =>
-        set((state) => ({
-          tasks: [
-            ...state.tasks,
-            {
-              ...task,
-              id: crypto.randomUUID(),
-              completed: false,
-            },
-          ],
-        })),
+        set((state) => {
+          const block = computeBlock(task.time, get().prayerTimes)
+          return {
+            tasks: [
+              ...state.tasks,
+              {
+                ...task,
+                id: crypto.randomUUID(),
+                completed: false,
+                block,
+              },
+            ],
+          }
+        }),
 
       updateTask: (id, patch) =>
         set((state) => ({
           tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)),
         })),
-
-      reorderTasksInBlock: (activeId, overId) =>
-        set((state) => {
-          if (activeId === overId) return state
-
-          const activeTask = state.tasks.find((t) => t.id === activeId)
-          const overTask = state.tasks.find((t) => t.id === overId)
-          if (!activeTask || !overTask) return state
-          if (activeTask.block !== overTask.block) return state
-
-          const block = activeTask.block
-          const blockIndices: number[] = []
-          for (let i = 0; i < state.tasks.length; i++) {
-            if (state.tasks[i]?.block === block) blockIndices.push(i)
-          }
-
-          const from = blockIndices.findIndex((idx) => state.tasks[idx]?.id === activeId)
-          const to = blockIndices.findIndex((idx) => state.tasks[idx]?.id === overId)
-          if (from < 0 || to < 0 || from === to) return state
-
-          const next = [...state.tasks]
-          const fromIndex = blockIndices[from]!
-          const toIndex = blockIndices[to]!
-          const [moved] = next.splice(fromIndex, 1)
-          const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex
-          next.splice(insertIndex, 0, moved!)
-
-          return { tasks: next }
-        }),
-
-      moveTaskToBlock: (activeId, targetBlock, overId) =>
-        set((state) => {
-          const activeIndex = state.tasks.findIndex((t) => t.id === activeId)
-          if (activeIndex < 0) return state
-
-          const next = [...state.tasks]
-          const [removed] = next.splice(activeIndex, 1)
-          if (!removed) return state
-
-          const moved: Task = { ...removed, block: targetBlock }
-
-          if (overId) {
-            const overIndex = next.findIndex((t) => t.id === overId)
-            if (overIndex >= 0) {
-              next.splice(overIndex, 0, moved)
-              return { tasks: next }
-            }
-          }
-
-          const lastIndexInBlock = (() => {
-            let idx = -1
-            for (let i = 0; i < next.length; i++) {
-              if (next[i]?.block === targetBlock) idx = i
-            }
-            return idx
-          })()
-
-          if (lastIndexInBlock >= 0) {
-            next.splice(lastIndexInBlock + 1, 0, moved)
-          } else {
-            next.push(moved)
-          }
-
-          return { tasks: next }
-        }),
 
       toggleTask: (id) =>
         set((state) => ({

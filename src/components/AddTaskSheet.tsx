@@ -1,20 +1,23 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAppStore, type TimeBlock, type TaskPriority, type TaskRecurring } from '../store/useAppStore'
+import { useAppStore, type TaskPriority, type TaskRecurring } from '../store/useAppStore'
 
-const DURATIONS = [15, 30, 60, 120] as const
-const BLOCKS: { value: TimeBlock; label: string }[] = [
-  { value: 'fajr-dhuhr', label: 'Фаджр – Зухр' },
-  { value: 'dhuhr-asr', label: 'Зухр – Аср' },
-  { value: 'asr-maghrib', label: 'Аср – Магриб' },
-  { value: 'maghrib-isha', label: 'Магриб – Иша' },
-  { value: 'after-isha', label: 'После Иша' },
-]
 const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
   { value: 'low', label: 'Низкий', color: 'var(--text-secondary)' },
   { value: 'medium', label: 'Средний', color: 'var(--accent)' },
   { value: 'high', label: 'Высокий', color: 'var(--prayer-dot)' },
 ]
+
+function nowTimeStr(): string {
+  const d = new Date()
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+}
+
+function addMinutes(timeStr: string, mins: number): string {
+  const [h, m] = timeStr.split(':').map(Number)
+  const total = (h! * 60 + m! + mins + 1440) % 1440
+  return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`
+}
 
 interface AddTaskSheetProps {
   open: boolean
@@ -24,35 +27,24 @@ interface AddTaskSheetProps {
 export function AddTaskSheet({ open, onClose }: AddTaskSheetProps) {
   const addTask = useAppStore((s) => s.addTask)
   const [name, setName] = useState('')
-  const [duration, setDuration] = useState<number>(30)
-  const [customMinutes, setCustomMinutes] = useState('')
-  const [block, setBlock] = useState<TimeBlock>('fajr-dhuhr')
+  const [time, setTime] = useState('')
   const [priority, setPriority] = useState<TaskPriority>('medium')
   const [recurring, setRecurring] = useState<TaskRecurring>('none')
-
-  const parsedCustom = customMinutes ? parseInt(customMinutes, 10) : NaN
-  const durationMinutes = Number.isFinite(parsedCustom) && parsedCustom > 0
-    ? Math.min(480, Math.max(5, parsedCustom))
-    : duration
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
-    addTask({
-      name: name.trim(),
-      duration: durationMinutes,
-      block,
-      priority,
-      recurring,
-    })
+    addTask({ name: name.trim(), time: time || undefined, priority, recurring })
     setName('')
-    setDuration(30)
-    setCustomMinutes('')
-    setBlock('fajr-dhuhr')
+    setTime('')
     setPriority('medium')
     setRecurring('none')
     onClose()
   }
+
+  const setNowTime = () => setTime(nowTimeStr())
+  const setPlus30 = () => setTime(addMinutes(time || nowTimeStr(), 30))
+  const setPlus60 = () => setTime(addMinutes(time || nowTimeStr(), 60))
 
   return (
     <AnimatePresence>
@@ -76,122 +68,143 @@ export function AddTaskSheet({ open, onClose }: AddTaskSheetProps) {
             onDragEnd={(_, info) => { if (info.offset.y > 120) onClose() }}
             className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--surface)] border-t border-[var(--border)] rounded-t-2xl max-w-[480px] mx-auto shadow-[0_-1px_3px_rgba(0,0,0,0.06)]"
           >
-            <div className="p-6 pb-[env(safe-area-inset-bottom)]">
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-9 h-1 rounded-full bg-[var(--border)]" />
+            </div>
+
+            <div className="px-6 pb-[max(24px,env(safe-area-inset-bottom))]">
               <form onSubmit={handleSubmit} className="space-y-5">
+
                 {/* Name */}
-                <div>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Что нужно сделать?"
-                    autoFocus
-                    className="w-full font-display text-xl text-[var(--text-primary)] bg-transparent border-b border-[var(--border)] pb-2 outline-none placeholder:text-[var(--text-secondary)]"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Что нужно сделать?"
+                  autoFocus
+                  className="w-full font-display text-xl text-[var(--text-primary)] bg-transparent border-b border-[var(--border)] pb-2 outline-none placeholder:text-[var(--text-secondary)]"
+                />
 
-                {/* Duration */}
+                {/* Time */}
                 <div>
-                  <p className="font-body text-sm text-[var(--text-secondary)] mb-2">Длительность</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {DURATIONS.map((m) => (
+                  {/* Shortcuts */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={setNowTime}
+                      className="px-3 py-1 font-body text-xs rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--prayer-dot)] hover:text-[var(--prayer-dot)] transition-colors"
+                    >
+                      Сейчас
+                    </button>
+                    <button
+                      type="button"
+                      onClick={setPlus30}
+                      className="px-3 py-1 font-body text-xs rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--prayer-dot)] hover:text-[var(--prayer-dot)] transition-colors"
+                    >
+                      +30 мин
+                    </button>
+                    <button
+                      type="button"
+                      onClick={setPlus60}
+                      className="px-3 py-1 font-body text-xs rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--prayer-dot)] hover:text-[var(--prayer-dot)] transition-colors"
+                    >
+                      +1 час
+                    </button>
+                    {time && (
                       <button
-                        key={m}
                         type="button"
-                        onClick={() => { setDuration(m); setCustomMinutes('') }}
-                        className={`px-3 py-1.5 font-body text-sm rounded-md border transition-colors ${
-                          !customMinutes && duration === m
-                            ? 'bg-[var(--text-primary)] text-white border-[var(--text-primary)]'
-                            : 'bg-transparent border-[var(--border)] text-[var(--text-primary)]'
-                        }`}
+                        onClick={() => setTime('')}
+                        className="ml-auto font-body text-xs text-[var(--text-secondary)] opacity-60 hover:opacity-100 transition-opacity"
                       >
-                        {m === 60 ? '1ч' : m === 120 ? '2ч' : `${m}м`}
+                        ✕ убрать
                       </button>
-                    ))}
-                    <span className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        min={5}
-                        max={480}
-                        placeholder="Своё"
-                        value={customMinutes}
-                        onChange={(e) => setCustomMinutes(e.target.value)}
-                        className="w-16 px-2 py-1.5 font-body text-sm rounded-md border border-[var(--border)] bg-transparent text-[var(--text-primary)] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                      {customMinutes && <span className="font-body text-sm text-[var(--text-secondary)]">мин</span>}
-                    </span>
+                    )}
                   </div>
-                </div>
 
-                {/* Block */}
-                <div>
-                  <p className="font-body text-sm text-[var(--text-secondary)] mb-2">Временной блок</p>
-                  <select
-                    value={block}
-                    onChange={(e) => setBlock(e.target.value as TimeBlock)}
-                    className="w-full font-body text-sm px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--bg)] text-[var(--text-primary)] outline-none"
+                  {/* Time input */}
+                  <label
+                    className={`flex items-center gap-3 rounded-xl border px-4 py-3 cursor-text transition-colors ${
+                      time
+                        ? 'border-[var(--prayer-dot)] bg-[rgba(44,74,62,0.05)]'
+                        : 'border-[var(--border)] bg-[var(--bg)]'
+                    }`}
                   >
-                    {BLOCKS.map((b) => (
-                      <option key={b.value} value={b.value}>{b.label}</option>
-                    ))}
-                  </select>
+                    <svg
+                      width="18" height="18" viewBox="0 0 24 24" fill="none"
+                      className="flex-shrink-0"
+                      style={{ color: time ? 'var(--prayer-dot)' : 'var(--text-secondary)' }}
+                    >
+                      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
+                      <path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+                    </svg>
+                    <input
+                      type="time"
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                      className="flex-1 font-display text-2xl bg-transparent outline-none"
+                      style={{
+                        color: time ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        minWidth: 0,
+                      }}
+                    />
+                    {!time && (
+                      <span className="font-body text-sm text-[var(--text-secondary)] opacity-50 pointer-events-none">
+                        не указано → сейчас
+                      </span>
+                    )}
+                  </label>
                 </div>
 
                 {/* Priority */}
-                <div>
-                  <p className="font-body text-sm text-[var(--text-secondary)] mb-2">Приоритет</p>
-                  <div className="flex gap-2">
-                    {PRIORITIES.map((p) => (
-                      <button
-                        key={p.value}
-                        type="button"
-                        onClick={() => setPriority(p.value)}
-                        className="flex-1 py-2 font-body text-sm rounded-md border transition-colors flex items-center justify-center gap-2"
-                        style={{
-                          borderColor: priority === p.value ? p.color : 'var(--border)',
-                          background: priority === p.value ? 'var(--surface)' : 'transparent',
-                        }}
-                      >
-                        <span
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: p.color }}
-                          aria-hidden
-                        />
-                        <span style={{ color: 'var(--text-primary)' }}>{p.label}</span>
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex gap-2">
+                  {PRIORITIES.map((p) => (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => setPriority(p.value)}
+                      className="flex-1 py-2 font-body text-sm rounded-xl border transition-colors flex items-center justify-center gap-1.5"
+                      style={{
+                        borderColor: priority === p.value ? p.color : 'var(--border)',
+                        background: priority === p.value ? 'var(--surface)' : 'transparent',
+                      }}
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: p.color }}
+                        aria-hidden
+                      />
+                      <span style={{ color: 'var(--text-primary)' }}>{p.label}</span>
+                    </button>
+                  ))}
                 </div>
 
                 {/* Recurring */}
-                <div>
-                  <p className="font-body text-sm text-[var(--text-secondary)] mb-2">Повторение</p>
-                  <div className="flex gap-2">
-                    {([
-                      { value: 'none' as TaskRecurring, label: 'Однажды' },
-                      { value: 'daily' as TaskRecurring, label: 'Каждый день' },
-                    ]).map((r) => (
-                      <button
-                        key={r.value}
-                        type="button"
-                        onClick={() => setRecurring(r.value)}
-                        className={`flex-1 py-2 font-body text-sm rounded-md border transition-colors ${
-                          recurring === r.value
-                            ? 'bg-[var(--text-primary)] text-white border-[var(--text-primary)]'
-                            : 'border-[var(--border)] bg-transparent text-[var(--text-primary)]'
-                        }`}
-                      >
-                        {r.label}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex gap-2">
+                  {([
+                    { value: 'none' as TaskRecurring, label: 'Однажды' },
+                    { value: 'daily' as TaskRecurring, label: '↻ Каждый день' },
+                  ]).map((r) => (
+                    <button
+                      key={r.value}
+                      type="button"
+                      onClick={() => setRecurring(r.value)}
+                      className={`flex-1 py-2 font-body text-sm rounded-xl border transition-colors ${
+                        recurring === r.value
+                          ? 'bg-[var(--text-primary)] text-white border-[var(--text-primary)]'
+                          : 'border-[var(--border)] bg-transparent text-[var(--text-primary)]'
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3 font-body text-sm font-medium text-white bg-[var(--prayer-dot)] rounded-lg"
+                  className="w-full py-3.5 font-body text-sm font-medium text-white bg-[var(--prayer-dot)] rounded-xl"
                 >
-                  Добавить в день
+                  Добавить
                 </button>
               </form>
             </div>
